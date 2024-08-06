@@ -1,9 +1,28 @@
 use std::str::FromStr;
-use crate::ast::{Expr, Opcode};
+use crate::ast::{Expr, Opcode, Statement};
 
 grammar;
 
-pub Expr: Box<Expr> = {
+pub Program: Vec<Box<Statement>> = {
+  StatementList
+}
+
+StatementList: Vec<Box<Statement>> = {
+  <mut v:(<Stmt> ";")*> <e:Stmt?> => match e {
+    Some(e) => {v.push(e); v},
+    None => v,
+  }
+}
+
+Stmt: Box<Statement> = {
+  PrintStatement
+}
+
+PrintStatement: Box<Statement> = {
+  "print" <Expr> => Box::new(Statement::Print(<>))
+}
+
+Expr: Box<Expr> = {
   Expr ExprOp Factor => Box::new(Expr::Op(<>)),
   Factor,
 };
@@ -24,15 +43,18 @@ FactorOp: Opcode = {
 };
 
 Term: Box<Expr> = {
-  Num => Box::new(Expr::Number(<>)),
+  IntLit => Box::new(Expr::Number(<>)),
+  FloatLit => Box::new(Expr::Float(<>)),
   Ident =>Box::new(Expr::Ident(<>)),
   "(" <Expr> ")"
 };
 
-Num: i32 = { DecNum, HexNum };
+IntLit: i32 = { DecInt, HexInt };
 
-DecNum: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
-HexNum: i32 = <s:r"0x[0-9a-fA-F]+"> => {
+DecInt: i32 = r"[0-9]+" => i32::from_str(<>).unwrap();
+HexInt: i32 = <s:r"0x[0-9a-fA-F]+"> => {
   i32::from_str_radix(&s[2..s.len()], 16).unwrap()
 };
+
+FloatLit: f32 = r"[0-9]+\.[0-9]*" => <>.parse::<f32>().unwrap();
 Ident: String = r"[a-zA-Z][a-zA-Z0-9]*" => String::from(<>);
